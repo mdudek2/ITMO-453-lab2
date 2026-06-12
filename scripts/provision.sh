@@ -65,7 +65,7 @@ VBoxManage unattended install "$vm_name" \
   --full-user-name=ubuntu \
   --password ubuntu \
   --time-zone=America/Chicago \
-  --post-install-script="$HOME/scripts/postinstall.sh"
+  --post-install-template="postinstall.sh"
 
 # Start the VM
 VBoxManage startvm "$vm_name" --type headless
