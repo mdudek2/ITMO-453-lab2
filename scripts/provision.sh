@@ -100,4 +100,4 @@ ssh-copy-id -o StrictHostKeyChecking=accept-new -i ~/.ssh/lab2-ssh-key.pub ubunt
 # Shutdowm the template so that it can be cloned safely
 VBoxManage controlvm "$vm_name" acpipowerbutton
 sleep 30
-echo "Template has been created successfully!
+echo "Template has been created successfully!"
