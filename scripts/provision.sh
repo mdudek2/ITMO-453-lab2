@@ -86,7 +86,13 @@ ip=$(VBoxManage dhcpserver findlease --interface=vboxnet0 --mac-address "$mac_ad
 echo "template IP: $ip"
 
 # generate a key to be used for ssh
-ssh-keygen -t ed25519 -f ~/.ssh/lab2-ssh-key -N "" -C "automatically generated as part of lab2 deployment" -q
+if [ ! -f ~/.ssh/lab2-ssh-key ]; then
+  ssh-keygen -t ed25519 \
+    -f ~/.ssh/lab2-ssh-key \
+    -N "" \
+    -C "automatically generated as part of lab2 deployment" \
+    -q
+fi
 
 # copy the public key to the vm template
 ssh-copy-id -o StrictHostKeyChecking=accept-new -i ~/.ssh/lab2-ssh-key.pub ubuntu@$ip
