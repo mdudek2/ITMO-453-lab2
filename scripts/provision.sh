@@ -2,13 +2,13 @@
 
 # variables for vm config
 
-vm_name="itmo-453-lab2-ubuntu-webserver-01"
+vm_name="lab2-ubuntu-webserver-template"
 vm_ram=4096
 vm_cpus=2
 vm_disk_size=25000
 vm_dir="$HOME/itmo-453-vms"
 
-echo "Starting vm provisioning..."
+echo "Starting template creation.."
 sleep 3
 
 # Create the virtual machine
@@ -18,14 +18,16 @@ VBoxManage createvm --name "$vm_name" \
   --ostype Ubuntu_64 \
   --register
 
-# Configure CPU and RAM 
-echo "Setting up the CPU and RAM..."
+# Configure CPU, RAM, and Graphics 
+echo "Setting up hardware..."
 sleep 3
 VBoxManage modifyvm "$vm_name" \
   --memory "$vm_ram" \
   --cpus "$vm_cpus" \
   --nic1 nat \
-  --nic2 hostonly --hostonlyadapter2 vboxnet0
+  --nic2 hostonly --hostonlyadapter2 vboxnet0 \
+  --vram 16 \
+  --graphicscontroller vmsvga
 
 # Create a Disk
 echo "Creating a virtual hard disk..."
@@ -67,5 +69,29 @@ VBoxManage unattended install "$vm_name" \
   --time-zone=America/Chicago \
   --post-install-template="postinstall.sh"
 
-# Start the VM
+# start the vm
 VBoxManage startvm "$vm_name" --type headless
+
+# Wait for the VM to finish installing
+echo "Waiting for the VM to finish installing..."
+sleep 360
+
+# Acquire networking data for SSH
+echo "Acquiring network information..."
+
+mac_addr=$(VBoxManage showvminfo "$vm_name" --machinereadable \
+  | awk -F'"' '/macaddress2/ {print $2}')
+
+ip=$(VBoxManage dhcpserver findlease --interface=vboxnet0 --mac-address "$mac_addr" | awk -F': *' '/IP Address/ {print $2}')
+echo "template IP: $ip"
+
+# generate a key to be used for ssh
+ssh-keygen -t ed25519 -f ~/.ssh/lab2-ssh-key -N "" -C "automatically generated as part of lab2 deployment" -q
+
+# copy the public key to the vm template
+ssh-copy-id -o StrictHostKeyChecking=accept-new -i ~/.ssh/lab2-ssh-key.pub ubuntu@$ip
+
+# Shutdowm the template so that it can be cloned safely
+VBoxManage controlvm "$vm_name" acpipowerbutton
+sleep 30
+echo "Template has been created successfully!
