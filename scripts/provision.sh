@@ -1,103 +1,93 @@
 #!/bin/bash
+set -e
 
-# variables for vm config
+# VM Configuration vars
+VM_BASE_NAME="itmo-453-web"
+VM_COUNT=2
+VM_RAM=4096
+VM_CPUS=1
+VM_DISK_SIZE=20000
+VM_DIR="$HOME/itmo-453-lab2-vms"
+ISO_PATH="$HOME/isos/ubuntu-24.04.4-live-server-amd64.iso"
+HOSTONLY_IF="vboxnet0"
 
-vm_name="lab2-ubuntu-webserver-template"
-vm_ram=4096
-vm_cpus=2
-vm_disk_size=25000
-vm_dir="$HOME/itmo-453-vms"
+mkdir -p "$VM_DIR"
 
-echo "Starting template creation.."
+# start multiple VMs using a for loop
+for i in $(seq 1 "$VM_COUNT"); do
+
+  VM_NAME="${VM_BASE_NAME}-${i}"
+
+  echo "Creating VM: $VM_NAME"
+
+  VBoxManage createvm --name "$VM_NAME" \
+    --ostype Ubuntu_64 \
+    --register
+
+  VBoxManage modifyvm "$VM_NAME" \
+    --memory "$VM_RAM" \
+    --cpus "$VM_CPUS" \
+    --nic1 nat \
+    --nic2 hostonly --hostonlyadapter2 "$HOSTONLY_IF" \
+    --vram 16 \
+    --graphicscontroller vmsvga
+
+  VBoxManage createmedium disk --filename "$VM_DIR/$VM_NAME.vdi" \
+    --size "$VM_DISK_SIZE"
+
+  VBoxManage storagectl "$VM_NAME" --name SATA --add sata --controller IntelAhci
+
+  VBoxManage storageattach "$VM_NAME" \
+    --storagectl SATA \
+    --port 0 \
+    --device 0 \
+    --type hdd \
+    --medium "$VM_DIR/$VM_NAME.vdi"
+
+  VBoxManage storagectl "$VM_NAME" --name IDE --add ide
+
+  VBoxManage storageattach "$VM_NAME" \
+    --storagectl IDE \
+    --port 0 \
+    --device 0 \
+    --type dvddrive \
+    --medium "$ISO_PATH"
+
+  VBoxManage unattended install "$VM_NAME" \
+    --iso="$ISO_PATH" \
+    --user=ubuntu \
+    --full-user-name=ubuntu \
+    --password ubuntu \
+    --time-zone=America/Chicago \
+    --post-install-template="postinstall.sh"
+
+  VBoxManage startvm "$VM_NAME" --type headless
+
+done
+
+# Wait for a few minutes so that unattended install finishes
+echo "Sleeping for a few minutes to give VM's time to finish installing."
+sleep 480
+
+# Output all IP addresses on vboxnet0 
+# 192.168.56.100 is the dhcp server
+echo "Scanning vboxnet0 to find IPs..."
+
+DHCP_IP="192.168.56.100"
+
+# discover IP's using arp-scan
+IPS=$(sudo arp-scan --interface=vboxnet0 192.168.56.0/24 | \
+    awk -v exclude="$DHCP_IP" '/^[0-9]+\./ && $1 != exclude { print $1 }')
+
+echo "Detected Web Servers:"
+printf '%s\n' "$IPS"
+
+# write IP's to ansibles inventory file so that the servers can be configured later
+echo "Writing hosts to inventory in /etc/ansible/hosts..."
 sleep 3
+{
+    echo "[lab2-webservers]"
+    printf '%s\n' "$IPS"
+} | sudo tee -a /etc/ansible/hosts > /dev/null
 
-# Create the virtual machine
-echo "Creating vm: "$vm_name""
-sleep 3
-VBoxManage createvm --name "$vm_name" \
-  --ostype Ubuntu_64 \
-  --register
-
-# Configure CPU, RAM, and Graphics 
-echo "Setting up hardware..."
-sleep 3
-VBoxManage modifyvm "$vm_name" \
-  --memory "$vm_ram" \
-  --cpus "$vm_cpus" \
-  --nic1 nat \
-  --nic2 hostonly --hostonlyadapter2 vboxnet0 \
-  --vram 16 \
-  --graphicscontroller vmsvga
-
-# Create a Disk
-echo "Creating a virtual hard disk..."
-sleep 3
-VBoxManage createmedium disk --filename "$vm_dir/$vm_name.vdi" \
-  --size "$vm_disk_size"
-
-# Add a Sata Controller
-echo "Setting up the Sata Controller..."
-sleep 3
-VBoxManage storagectl "$vm_name" --name SATA --add sata --controller IntelAhci
-
-# Attach a Disk
-echo "Attaching the disk to the VM..."
-sleep 3
-VBoxManage storageattach "$vm_name" \
-  --storagectl SATA \
-  --port 0 \
-  --device 0 \
-  --type hdd \
-  --medium "$vm_dir/$vm_name.vdi"
-
-# Add and attach IDE Controller
-echo "Setting up the IDE Controller..."
-sleep 3
-VBoxManage storagectl "$vm_name" --name IDE --add ide
-VBoxManage storageattach "$vm_name" --storagectl IDE \
- --port 0 \
- --device 0 \
- --type dvddrive \
- --medium "$HOME/isos/ubuntu-24.04.4-live-server-amd64.iso"
-
-# Install the OS via unattended install
-VBoxManage unattended install "$vm_name" \
-  --iso="$HOME/isos/ubuntu-24.04.4-live-server-amd64.iso" \
-  --user=ubuntu \
-  --full-user-name=ubuntu \
-  --password ubuntu \
-  --time-zone=America/Chicago \
-  --post-install-template="postinstall.sh"
-
-# start the vm
-VBoxManage startvm "$vm_name" --type headless
-
-# Wait for the VM to finish installing
-echo "Waiting for the VM to finish installing..."
-sleep 360
-
-# Acquire networking data for SSH
-echo "Acquiring network information..."
-
-mac_addr=$(VBoxManage showvminfo "$vm_name" --machinereadable \
-  | awk -F'"' '/macaddress2/ {print $2}')
-
-ip=$(VBoxManage dhcpserver findlease --interface=vboxnet0 --mac-address "$mac_addr" | awk -F': *' '/IP Address/ {print $2}')
-echo "template IP: $ip"
-
-# generate a key to be used for ssh
-if [ ! -f ~/.ssh/lab2-ssh-key ]; then
-  ssh-keygen -t ed25519 \
-    -f ~/.ssh/lab2-ssh-key \
-    -N "" \
-    -C "automatically generated as part of lab2 deployment" \
-    -q
-fi
-
-# copy the public key to the vm template
-ssh-copy-id -o StrictHostKeyChecking=accept-new -i ~/.ssh/lab2-ssh-key.pub ubuntu@$ip
-
-# Shutdowm the template so that it can be cloned safely
-VBoxManage controlvm "$vm_name" acpipowerbutton
-sleep 30
-echo "Template has been created successfully!"
+echo "Provisioning Done! You can now use ansible for aditional configuration."

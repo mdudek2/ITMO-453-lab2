@@ -1,0 +1,38 @@
+---
+- name: Harden SSH Configuration
+  hosts: lab2-webservers
+
+  vars:
+    ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+    ansible_user: ubuntu
+    ansible_password: ubuntu
+
+  tasks:
+    - name: Add SSH public key for ubuntu user
+      ansible.posix.authorized_key:
+        user: ubuntu
+        state: present
+        key: "{{ lookup('file', '/home/maks/.ssh/lab2-ssh-key.pub') }}"
+
+    - name: Disable password-based SSH logins
+      become: true
+      become_method: sudo
+      vars:
+        ansible_become_password: ubuntu
+      
+      ansible.builtin.copy:
+        src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/sshd_config.conf
+        dest: /etc/ssh/sshd_config.d/sshd_config.conf
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Restart SSH service
+      become: true
+      become_method: sudo
+      vars:
+        ansible_become_password: ubuntu
+      
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
