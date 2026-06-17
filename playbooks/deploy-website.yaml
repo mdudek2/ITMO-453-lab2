@@ -16,7 +16,7 @@
 
     - name: Add nginx configuration
       copy:
-        src: /home/maks/Documents/repos/ITMO-453-lab2/configs/hello-site.conf
+        src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/hello-site.conf
         dest: /etc/nginx/sites-available/
         owner: root
         group: root
@@ -24,7 +24,7 @@
 
     - name: Copy website to servers
       copy:
-        src: /home/maks/Documents/repos/ITMO-453-lab2/html/index.html
+        src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/html/index.html
         dest: /var/www/html/
         owner: root
         group: root
