@@ -8,6 +8,17 @@
     ansible_password: ubuntu
 
   tasks:
+
+    - name: Update and upgrade via apt
+      become: true
+      become_method: sudo
+      vars:
+        ansible_become_password: ubuntu
+      
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: safe
+      
     - name: Add SSH public key for ubuntu user
       ansible.posix.authorized_key:
         user: ubuntu
