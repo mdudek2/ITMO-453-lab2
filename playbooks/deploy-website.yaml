@@ -1,0 +1,42 @@
+- name: Configure nginx and deploy site
+  hosts: lab2-webservers
+  become: true
+  become_method: sudo
+  vars:
+    ansible_user: ubuntu
+    ansible_become_password: ubuntu
+    ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
+
+  tasks:
+
+    - name: Remove default nginx configuration
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    - name: Add nginx configuration
+      copy:
+        src: /home/maks/Documents/repos/ITMO-453-lab2/configs/hello-site.conf
+        dest: /etc/nginx/sites-available/
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Copy website to servers
+      copy:
+        src: /home/maks/Documents/repos/ITMO-453-lab2/html/index.html
+        dest: /var/www/html/
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Enable the site on nginx
+      file:
+        src: /etc/nginx/sites-available/hello-site.conf
+        dest: /etc/nginx/sites-enabled/hello-site.conf
+        state: link
+
+    - name: Restart nginx
+      systemd:
+        name: nginx
+        state: restarted
