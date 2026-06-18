@@ -13,6 +13,6 @@ if [ ! -f ~/.ssh/lab2-ssh-key ]; then
 fi
 
 # use an ansible playbook to insert the key into each machine and harden ssh
-echo "Perfoming intitial hardening for all webservers..."
+echo "Performing initial hardening for all webservers..."
 sleep 3
 sudo ansible-playbook ../playbooks/harden.yaml

@@ -10,7 +10,7 @@ sudo rm /etc/ansible/hosts
 sudo touch /etc/ansible/hosts
 
 # destroy virtualbox machines
-echo "shutting down and destroying virtual machines..."
+echo "Shutting down and destroying virtual machines..."
 
 VBoxManage list vms |
 while read -r line; do
@@ -24,4 +24,4 @@ while read -r line; do
     fi
 done
 
-echo "All Machines Deleted!"
+echo "All machines deleted!"

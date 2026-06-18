@@ -90,4 +90,4 @@ sleep 3
     printf '%s\n' "$IPS"
 } | sudo tee -a /etc/ansible/hosts > /dev/null
 
-echo "Provisioning Done! You can now use ansible for aditional configuration."
+echo "Provisioning Done! You can now use ansible for additional configuration."
