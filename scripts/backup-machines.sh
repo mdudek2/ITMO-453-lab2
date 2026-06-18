@@ -22,4 +22,4 @@ while read -r line; do
     fi
 done
 
-echo "All Machines have been backup up!"
+echo "All Machines have been backed up!"
