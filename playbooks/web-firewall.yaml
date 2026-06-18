@@ -5,10 +5,10 @@
   become_method: sudo
   
   vars:
-    ansible_user: ubuntu
-    ansible_become_password: ubuntu
+    ansible_user: admin
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
-
+  
+  # firewall rules for web servers
   tasks:
     - name: Reset UFW Firewall
       community.general.ufw:

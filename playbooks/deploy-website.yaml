@@ -3,17 +3,18 @@
   become: true
   become_method: sudo
   vars:
-    ansible_user: ubuntu
-    ansible_become_password: ubuntu
+    ansible_user: admin
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
 
   tasks:
-
+    
+    # disable the default site
     - name: Remove default nginx configuration
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
-
+    
+    # copy over configuration for the new site
     - name: Add nginx configuration
       copy:
         src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/hello-site.conf
@@ -21,7 +22,8 @@
         owner: root
         group: root
         mode: '0644'
-
+    
+    # copy the new website to each webserver
     - name: Copy website to servers
       copy:
         src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/html/index.html
@@ -29,13 +31,15 @@
         owner: root
         group: root
         mode: '0755'
-
+    
+    # enable the site on nginx
     - name: Enable the site on nginx
       file:
         src: /etc/nginx/sites-available/hello-site.conf
         dest: /etc/nginx/sites-enabled/hello-site.conf
         state: link
-
+    
+    # restart nginx to apply the new configuration
     - name: Restart nginx
       systemd:
         name: nginx

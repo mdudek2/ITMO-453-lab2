@@ -1,49 +1,81 @@
 ---
-- name: Harden SSH Configuration
+- name: Basic Security Configuration
   hosts: lab2-webservers
+  become: true
 
   vars:
     ansible_ssh_common_args: "-o StrictHostKeyChecking=no"
+
+    # temporary account which gets locked after initial config
     ansible_user: ubuntu
     ansible_password: ubuntu
+    ansible_become_password: ubuntu
+    admin_user: admin
+
+  handlers:
+    - name: Restart SSH
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
 
   tasks:
-
-    - name: Update and upgrade via apt
-      become: true
-      become_method: sudo
-      vars:
-        ansible_become_password: ubuntu
-      
-      ansible.builtin.apt:
-        update_cache: yes
-        upgrade: safe
-      
-    - name: Add SSH public key for ubuntu user
+    
+    # create a new user account for administration 
+    - name: Create admin user
+      ansible.builtin.user:
+        name: "{{ admin_user }}"
+        shell: /bin/bash
+        create_home: true
+        groups: sudo
+        append: true
+    
+    # add an ssh key for the admin user
+    - name: Add SSH key for admin user
       ansible.posix.authorized_key:
-        user: ubuntu
+        user: "{{ admin_user }}"
         state: present
         key: "{{ lookup('file', '/home/maks/.ssh/lab2-ssh-key.pub') }}"
-
-    - name: Disable password-based SSH logins
-      become: true
-      become_method: sudo
-      vars:
-        ansible_become_password: ubuntu
-      
+    
+    # allow the new admin user to use sudo without a password
+    - name: Configure passwordless sudo for admin user
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/{{ admin_user }}"
+        content: "{{ admin_user }} ALL=(ALL) NOPASSWD:ALL\n"
+        owner: root
+        group: root
+        mode: "0440"
+        validate: "visudo -cf %s"
+    
+    # check for updates
+    - name: Update apt cache and upgrade packages
+      ansible.builtin.apt:
+        update_cache: true
+        upgrade: safe
+     
+    # daily updates
+    - name: Schedule the system to update daily via cron
+      ansible.builtin.cron:
+        name: "Daily update"
+        minute: "0"
+        hour: "2"
+        user: root
+        job: "sudo apt-get update && sudo apt-get upgrade -y"
+    
+    # configure ssh to only accept keys for authentication
+    - name: Install hardened SSH configuration
       ansible.builtin.copy:
         src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/sshd_config.conf
         dest: /etc/ssh/sshd_config.d/sshd_config.conf
         owner: root
         group: root
         mode: "0600"
+      notify: Restart SSH
 
-    - name: Restart SSH service
-      become: true
-      become_method: sudo
-      vars:
-        ansible_become_password: ubuntu
-      
-      ansible.builtin.service:
-        name: ssh
-        state: restarted
+    - name: Flush handlers so SSH restarts before disabling ubuntu
+      ansible.builtin.meta: flush_handlers
+
+    # lock the account that was used during initial setup because it is not needed
+    - name: Lock ubuntu account
+      ansible.builtin.user:
+        name: ubuntu
+        password_lock: true
