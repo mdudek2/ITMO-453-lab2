@@ -3,6 +3,7 @@ set -e
 
 # VM Configuration vars
 VM_BASE_NAME="itmo-453-web"
+PROMETHEUS_NAME="itmo-453-prometheus"
 VM_COUNT=2
 VM_RAM=4096
 VM_CPUS=1
@@ -10,8 +11,18 @@ VM_DISK_SIZE=20000
 VM_DIR="$HOME/itmo-453-lab2-vms"
 ISO_PATH="$HOME/isos/ubuntu-24.04.4-live-server-amd64.iso"
 HOSTONLY_IF="vboxnet0"
+NETWORK_NAME="lab2nat"
 
 mkdir -p "$VM_DIR"
+
+# Create a NAT network so that virtual machines can communicate with each other
+if ! VBoxManage list natnetworks | grep -q "^Name:.*${NETWORK_NAME}$"; then
+  VBoxManage natnetwork add \
+    --netname "$NETWORK_NAME" \
+    --network "192.168.100.0/24" \
+    --enable \
+    --dhcp on
+fi
 
 # start multiple VMs using a for loop
 for i in $(seq 1 "$VM_COUNT"); do
@@ -27,7 +38,8 @@ for i in $(seq 1 "$VM_COUNT"); do
   VBoxManage modifyvm "$VM_NAME" \
     --memory "$VM_RAM" \
     --cpus "$VM_CPUS" \
-    --nic1 nat \
+    --nic1 natnetwork \
+    --nat-network1 "$NETWORK_NAME" \
     --nic2 hostonly --hostonlyadapter2 "$HOSTONLY_IF" \
     --vram 16 \
     --graphicscontroller vmsvga

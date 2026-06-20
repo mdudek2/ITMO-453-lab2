@@ -2,6 +2,7 @@
   hosts: lab2-webservers
   become: true
   become_method: sudo
+  
   vars:
     ansible_user: admin
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
