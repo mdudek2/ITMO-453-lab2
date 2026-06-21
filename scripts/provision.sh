@@ -12,6 +12,9 @@ VM_DIR="$HOME/itmo-453-lab2-vms"
 ISO_PATH="$HOME/isos/ubuntu-24.04.4-live-server-amd64.iso"
 HOSTONLY_IF="vboxnet0"
 NETWORK_NAME="lab2nat"
+DHCP_IP="192.168.56.100"
+INVENTORY="/etc/ansible/hosts"
+GROUPNAME="webservers"
 
 mkdir -p "$VM_DIR"
 
@@ -71,7 +74,7 @@ for i in $(seq 1 "$VM_COUNT"); do
     --full-user-name=ubuntu \
     --password ubuntu \
     --time-zone=America/Chicago \
-    --post-install-template="postinstall.sh"
+    --post-install-template="web-postinstall.sh"
 
   VBoxManage startvm "$VM_NAME" --type headless
 
@@ -85,21 +88,122 @@ sleep 480
 # 192.168.56.100 is the dhcp server
 echo "Scanning vboxnet0 to find IPs..."
 
-DHCP_IP="192.168.56.100"
+# Output all IP addresses on vboxnet0
+# 192.168.56.100 is the DHCP server
+echo "Scanning vboxnet0 to find IPs..."
 
-# discover IP's using arp-scan
-IPS=$(sudo arp-scan --interface=vboxnet0 192.168.56.0/24 | \
-    awk -v exclude="$DHCP_IP" '/^[0-9]+\./ && $1 != exclude { print $1 }')
+# Create inventory if it doesn't exist
+sudo touch "$INVENTORY"
 
-echo "Detected Web Servers:"
-printf '%s\n' "$IPS"
+# Add group header for webservers if missing
+if ! grep -Fxq "[$GROUPNAME]" "$INVENTORY"; then
+    echo "[$GROUPNAME]" | sudo tee -a "$INVENTORY" > /dev/null
+fi
 
-# write IP's to ansibles inventory file so that the servers can be configured later
-echo "Writing hosts to inventory in /etc/ansible/hosts..."
+# add each newly discovered IP to the inventory if it isn't already present
+while IFS= read -r ip; do
+    if ! grep -Fxq "$ip" "$INVENTORY"; then
+        echo "$ip" | sudo tee -a "$INVENTORY" > /dev/null
+        echo "Added $ip"
+    else
+        echo "Skipping $ip (already present)"
+    fi
+done < <(
+    sudo arp-scan --interface=vboxnet0 192.168.56.0/24 |
+    awk -v exclude="$DHCP_IP" '
+        /^[0-9]+\./ && $1 != exclude {
+            print $1
+        }
+    '
+)
+
+echo "Wrote webservers IPs to ansible inventory file..."
+
+# create a prometheus server for monitoring
 sleep 3
-{
-    echo "[lab2-webservers]"
-    printf '%s\n' "$IPS"
-} | sudo tee -a /etc/ansible/hosts > /dev/null
+echo "Creating a prometheus server in order to monitor infrastructure..."
 
+echo "Creating VM: $PROMETHEUS_NAME"
+
+VBoxManage createvm --name "$PROMETHEUS_NAME" \
+  --ostype Ubuntu_64 \
+  --register
+
+VBoxManage modifyvm "$PROMETHEUS_NAME" \
+  --memory "$VM_RAM" \
+  --cpus "$VM_CPUS" \
+  --nic1 natnetwork \
+  --nat-network1 "$NETWORK_NAME" \
+  --nic2 hostonly --hostonlyadapter2 "$HOSTONLY_IF" \
+  --vram 16 \
+  --graphicscontroller vmsvga
+
+VBoxManage createmedium disk --filename "$VM_DIR/$PROMETHEUS_NAME.vdi" \
+  --size "$VM_DISK_SIZE"
+
+VBoxManage storagectl "$PROMETHEUS_NAME" --name SATA --add sata --controller IntelAhci
+
+VBoxManage storageattach "$PROMETHEUS_NAME" \
+  --storagectl SATA \
+  --port 0 \
+  --device 0 \
+  --type hdd \
+  --medium "$VM_DIR/$PROMETHEUS_NAME.vdi"
+
+VBoxManage storagectl "$PROMETHEUS_NAME" --name IDE --add ide
+
+VBoxManage storageattach "$PROMETHEUS_NAME" \
+  --storagectl IDE \
+  --port 0 \
+  --device 0 \
+  --type dvddrive \
+  --medium "$ISO_PATH"
+
+VBoxManage unattended install "$PROMETHEUS_NAME" \
+  --iso="$ISO_PATH" \
+  --user=ubuntu \
+  --full-user-name=ubuntu \
+  --password ubuntu \
+  --time-zone=America/Chicago \
+  --post-install-template="prometheus-post-install.sh"
+
+VBoxManage startvm "$PROMETHEUS_NAME" --type headless
+
+# Wait for a few minutes so that unattended install finishes
+echo "Sleeping for a few minutes to give the system time to finish installing."
+sleep 480
+
+echo "Scanning vboxnet0 to find the prometheus server IP..."
+
+# set the new groupname
+GROUPNAME="prometheus"
+
+# Add group header for webservers if missing
+if ! grep -Fxq "[$GROUPNAME]" "$INVENTORY"; then
+    echo "[$GROUPNAME]" | sudo tee -a "$INVENTORY" > /dev/null
+fi
+
+# add each newly discovered IP to the inventory if it isn't already present
+while IFS= read -r ip; do
+    if ! grep -Fxq "$ip" "$INVENTORY"; then
+        echo "$ip" | sudo tee -a "$INVENTORY" > /dev/null
+        echo "Added $ip"
+    else
+        echo "Skipping $ip (already present)"
+    fi
+done < <(
+    sudo arp-scan --interface=vboxnet0 192.168.56.0/24 |
+    awk -v exclude="$DHCP_IP" '
+        /^[0-9]+\./ && $1 != exclude {
+            print $1
+        }
+    '
+)
+
+echo "Wrote the prometheus servers IP to the ansible inventory file..."
+sleep 3
 echo "Provisioning Done! You can now use ansible for additional configuration."
+
+
+
+

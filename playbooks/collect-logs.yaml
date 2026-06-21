@@ -1,6 +1,6 @@
 ---
 - name: Collect web server logs
-  hosts: lab2-webservers
+  hosts: webservers
   become: true
   become_method: sudo
   

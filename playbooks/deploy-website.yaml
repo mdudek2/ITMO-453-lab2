@@ -1,5 +1,5 @@
 - name: Configure nginx and deploy site
-  hosts: lab2-webservers
+  hosts: webservers
   become: true
   become_method: sudo
   

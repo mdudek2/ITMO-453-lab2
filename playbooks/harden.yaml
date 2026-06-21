@@ -1,6 +1,6 @@
 ---
 - name: Basic Security Configuration
-  hosts: lab2-webservers
+  hosts: all
   become: true
 
   vars:
