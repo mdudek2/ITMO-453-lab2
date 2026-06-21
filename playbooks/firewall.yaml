@@ -93,4 +93,8 @@
         rule: allow
         port: "9090"
         proto: tcp
+
+    - name: Enable UFW Firewall Service
+      community.general.ufw:
+        state: enabled
   
