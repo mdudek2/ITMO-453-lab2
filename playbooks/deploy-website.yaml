@@ -1,47 +1,141 @@
+---
 - name: Configure nginx and deploy site
   hosts: webservers
   become: true
   become_method: sudo
-  
+
   vars:
     ansible_user: admin
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
 
   tasks:
-    
+
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+
     # disable the default site
     - name: Remove default nginx configuration
-      file:
+      ansible.builtin.file:
         path: /etc/nginx/sites-enabled/default
         state: absent
-    
+
     # copy over configuration for the new site
     - name: Add nginx configuration
-      copy:
-        src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/hello-site.conf
-        dest: /etc/nginx/sites-available/
+      ansible.builtin.copy:
+        src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/hello-site.conf"
+        dest: /etc/nginx/sites-available/hello-site.conf
         owner: root
         group: root
         mode: '0644'
-    
+
     # copy the new website to each webserver
     - name: Copy website to servers
-      copy:
-        src: /home/maks/Documents/repos/mdudek2/ITMO-453-lab2/html/index.html
-        dest: /var/www/html/
+      ansible.builtin.copy:
+        src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/html/index.html"
+        dest: /var/www/html/index.html
         owner: root
         group: root
-        mode: '0755'
-    
+        mode: '0644'
+
     # enable the site on nginx
     - name: Enable the site on nginx
-      file:
+      ansible.builtin.file:
         src: /etc/nginx/sites-available/hello-site.conf
         dest: /etc/nginx/sites-enabled/hello-site.conf
         state: link
-    
+        force: true
+
+    # install node-exporter and nginx-exporter
+    - name: Install exporters for metrics packages
+      ansible.builtin.apt:
+        name:
+          - prometheus-node-exporter
+          - prometheus-nginx-exporter
+        state: present
+
+    # copy the nginx metrics configuration file
+    - name: Copy metrics.conf to nginx configuration
+      ansible.builtin.copy:
+        src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/metrics.conf"
+        dest: /etc/nginx/conf.d/metrics.conf
+        owner: root
+        group: root
+        mode: '0644'
+
+    # enable exporters
+    - name: Enable metrics reporting services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+      loop:
+        - prometheus-node-exporter
+        - prometheus-nginx-exporter
+
+    # start exporters
+    - name: Start metrics reporting services
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        state: restarted
+      loop:
+        - prometheus-node-exporter
+        - prometheus-nginx-exporter
+
+    # validate nginx configuration
+    - name: Test nginx configuration
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+
     # restart nginx to apply the new configuration
     - name: Restart nginx
-      systemd:
+      ansible.builtin.systemd:
         name: nginx
+        state: restarted
+
+- name: Configure prometheus to monitor the deployed website
+  hosts: prometheus
+  become: true
+  become_method: sudo
+
+  vars:
+    ansible_user: admin
+    ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
+
+  tasks:
+
+    - name: Copy the prometheus configuration file
+      ansible.builtin.copy:
+        src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/prometheus.yml"
+        dest: /etc/prometheus/prometheus.yml
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: Copy the host discovery script to the prometheus instance
+      ansible.builtin.copy:
+        src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/scripts/discover-hosts.sh"
+        dest: /etc/prometheus/discover-hosts.sh
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install needed dependencies via apt
+      ansible.builtin.apt:
+        name:
+          - nmap
+          - jq
+        state: present
+
+    - name: Run the discovery script
+      ansible.builtin.shell: /etc/prometheus/discover-hosts.sh
+      args:
+        chdir: /etc/prometheus
+        executable: /bin/bash
+
+    - name: Restart prometheus
+      ansible.builtin.systemd:
+        name: prometheus
         state: restarted

@@ -1,0 +1,15 @@
+scrape_configs:
+  
+  # node
+  - job_name: node
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/node.json
+        refresh_interval: 30s
+    
+  # nginx
+  - job_name: nginx
+    file_sd_configs:
+      - files:
+          - /etc/prometheus/targets/nginx.json
+        refresh_interval: 30s
