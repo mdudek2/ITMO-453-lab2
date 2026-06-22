@@ -203,6 +203,8 @@ done < <(
 echo "Wrote the prometheus servers IP to the ansible inventory file..."
 sleep 3
 echo "Provisioning Done! You can now use ansible for additional configuration."
+echo "------------Inventory File------------"
+cat /etc/ansible/hosts
 
 
 
