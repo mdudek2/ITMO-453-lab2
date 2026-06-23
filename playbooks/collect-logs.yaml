@@ -76,12 +76,13 @@
       changed_when: false
       ignore_errors: true
     
-    # hardware logs
+    # disk logs
     - name: Collect disk usage
       shell: |
         df -h > {{ collect_dir }}/disk_usage.txt
       changed_when: false
-
+    
+    # memory info
     - name: Collect memory information
       shell: |
         free -m > {{ collect_dir }}/memory.txt
@@ -92,31 +93,36 @@
       shell: |
         ss -tulpn > {{ collect_dir }}/listening_ports.txt
       changed_when: false
-
+    
+    # make an archive
     - name: Create archive
       archive:
         path: "{{ collect_dir }}"
         dest: "/tmp/{{ archive_name }}"
         format: gz
     
+    # ensure destination exists on control node
     - name: Ensure local output directory exists
       delegate_to: localhost
       become: false
       file:
         path: "{{ local_output_dir }}"
         state: directory
-
+    
+    # grab the logs
     - name: Fetch archive
       fetch:
         src: "/tmp/{{ archive_name }}"
         dest: "{{ local_output_dir }}/"
         flat: true
-
+    
+    # cleanup
     - name: Cleanup collection directory
       file:
         path: "{{ collect_dir }}"
         state: absent
-
+   
+    # remove archive on each host
     - name: Remove remote archive
       file:
         path: "/tmp/{{ archive_name }}"

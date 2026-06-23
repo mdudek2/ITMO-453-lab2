@@ -8,7 +8,7 @@
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
 
   tasks:
-
+    # copy over the install script for openscap
     - name: Copy openscap install script
       ansible.builtin.copy:
         src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/scripts/scap.sh"
@@ -16,18 +16,23 @@
         owner: root
         group: root
         mode: '0755'
-
+    
+    # Install openscap and run a compliance check
+    # The scap.sh script will install everything thats needed
+    # and also perform a check and generate a remediation script
     - name: Install openscap and run compliance check
       ansible.builtin.shell: /home/admin/scap.sh
       args:
         chdir: /home/admin
         executable: /bin/bash
-
+    
+    # make the generated script executable
     - name: Ensure remediation script is executable
       ansible.builtin.file:
         path: /home/admin/cis-remediation.sh
         mode: '0755'
-
+    
+    # run the remediation script
     - name: Run remediation script
       ansible.builtin.shell: /home/admin/cis-remediation.sh
       args:

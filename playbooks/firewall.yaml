@@ -66,7 +66,8 @@
   vars:
     ansible_user: admin
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
-
+  
+  # Firewall rules for prometheus
   tasks:
     - name: Reset UFW Firewall on prometheus
       community.general.ufw:

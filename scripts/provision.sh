@@ -206,3 +206,4 @@ echo "Provisioning Done! You can now use ansible for additional configuration."
 
 echo "------------Inventory File------------"
 cat /etc/ansible/hosts
+echo "------------Inventory File------------"

@@ -118,7 +118,8 @@
     ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
 
   tasks:
-
+    
+    # copy the config file
     - name: Copy the prometheus configuration file
       ansible.builtin.copy:
         src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/configs/prometheus.yml"
@@ -126,7 +127,8 @@
         owner: root
         group: root
         mode: '0644'
-
+    
+    # copy the discover script. This script runs once and scans for hosts
     - name: Copy the host discovery script to the prometheus instance
       ansible.builtin.copy:
         src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/scripts/discover-hosts.sh"
@@ -135,19 +137,22 @@
         group: root
         mode: '0755'
 
+    # nmap and jq are needed by the discovery script
     - name: Install needed dependencies via apt
       ansible.builtin.apt:
         name:
           - nmap
           - jq
         state: present
-
+    
+    # run the script
     - name: Run the discovery script
       ansible.builtin.shell: /etc/prometheus/discover-hosts.sh
       args:
         chdir: /etc/prometheus
         executable: /bin/bash
-
+    
+    # restart prometheus to apply the configuration
     - name: Restart prometheus
       ansible.builtin.systemd:
         name: prometheus
