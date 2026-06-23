@@ -10,11 +10,24 @@
 
   tasks:
 
+    # make sure nginx is installed
     - name: Install nginx
       ansible.builtin.apt:
         name: nginx
         state: present
         update_cache: true
+    
+    # make sure that nginx is unmasked
+    - name: Unmask nginx
+      ansible.builtin.systemd:
+        name: nginx
+        masked: false
+
+    # restart nginx
+    - name: Restart nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted
 
     # disable the default site
     - name: Remove default nginx configuration

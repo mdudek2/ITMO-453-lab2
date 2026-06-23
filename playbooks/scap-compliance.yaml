@@ -1,0 +1,66 @@
+- name: Run compliance and remediation via openscap
+  hosts: all
+  become: true
+  become_method: sudo
+
+  vars:
+    ansible_user: admin
+    ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
+
+  tasks:
+
+    - name: Copy openscap install script
+      ansible.builtin.copy:
+        src: "/home/maks/Documents/repos/mdudek2/ITMO-453-lab2/scripts/scap.sh"
+        dest: "/home/admin/scap.sh"
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Install openscap and run compliance check
+      ansible.builtin.shell: /home/admin/scap.sh
+      args:
+        chdir: /home/admin
+        executable: /bin/bash
+
+    - name: Ensure remediation script is executable
+      ansible.builtin.file:
+        path: /home/admin/cis-remediation.sh
+        mode: '0755'
+
+    - name: Run remediation script
+      ansible.builtin.shell: /home/admin/cis-remediation.sh
+      args:
+        chdir: /home/admin
+        executable: /bin/bash
+
+# The remediation script disables and masks nginx, so it must be enabled once again on the web servers
+- name: Enable and unmask nginx
+  hosts: webservers
+  become: true
+  become_method: sudo
+
+  vars:
+    ansible_user: admin
+    ansible_ssh_private_key_file: /home/maks/.ssh/lab2-ssh-key
+
+  tasks:
+
+    # make sure nginx is installed
+    - name: Install nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+        update_cache: true
+    
+    # make sure that nginx is unmasked
+    - name: Unmask nginx
+      ansible.builtin.systemd:
+        name: nginx
+        masked: false
+
+    # restart nginx
+    - name: Restart nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: restarted

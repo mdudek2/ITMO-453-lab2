@@ -6,7 +6,7 @@ VM_BASE_NAME="itmo-453-web"
 PROMETHEUS_NAME="itmo-453-prometheus"
 VM_COUNT=2
 VM_RAM=4096
-VM_CPUS=1
+VM_CPUS=2
 VM_DISK_SIZE=20000
 VM_DIR="$HOME/itmo-453-lab2-vms"
 ISO_PATH="$HOME/isos/ubuntu-24.04.4-live-server-amd64.iso"
@@ -203,9 +203,6 @@ done < <(
 echo "Wrote the prometheus servers IP to the ansible inventory file..."
 sleep 3
 echo "Provisioning Done! You can now use ansible for additional configuration."
+
 echo "------------Inventory File------------"
 cat /etc/ansible/hosts
-
-
-
-
