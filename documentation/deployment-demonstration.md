@@ -26,7 +26,7 @@
 
 ## Logging Playbook
 
-![](./images/logging.png)
+![](./images/logs.png)
 
 ## Downloaded Logs
 
