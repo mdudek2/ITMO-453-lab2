@@ -10,7 +10,7 @@ VBoxManage list vms |
 while read -r line; do
     vm=$(echo "$line" | sed 's/^"\(.*\)" {.*}$/\1/')
 
-    if [[ $vm =~ ^itmo-453-web-[0-9]+$ ]]; then
+    if [[ $vm =~ ^itmo-453-.* ]]; then
         
         echo "Shutting down $vm..."
         VBoxManage controlvm "$vm" poweroff

@@ -2,7 +2,7 @@
 
 ## Requirements:
 
-1. A linux host system
+1. A linux host system capable of running three virtual machines at once
 2. Hardware that supports virtualization
 3. Oracle Virtualbox
 4. Ansible
@@ -16,6 +16,11 @@ This repository contains all of the needed scripts, playbooks, and configuration
 2. Run the initial-hardening script
 3. Run the setup-firewall script
 4. Run the deploy-site script
+5. Run the openscap-hardening.sh script
+
+or just run automated-deploy.sh
+
+You will likely need to provide a sudo password at least on time during the deployment.
 
 ## Note
 
