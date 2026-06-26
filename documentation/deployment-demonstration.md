@@ -35,3 +35,7 @@
 ## Backup Directory
 
 ![](./images/backup.png)
+
+## Machine Destruction
+
+![](./images/destroy.png)
